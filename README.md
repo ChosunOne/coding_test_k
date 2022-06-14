@@ -105,3 +105,21 @@ Questions:
 * What should happen if a dispute is initiated for a failed transaction?
   * **ASSUMPTION**: The account may still be locked if the transaction resolves in a chargeback, but transactions can only 
   fail if it was impossible for them to succeed.  A failed transaction will not impact the balances of a client.
+
+# Process Notes
+This was a fun challenge!  I leaned a lot on Rust's type system and the use of unit tests to ensure correctness and document 
+my code.  The most challenging part of this project was handling the case where a chargeback made subsequent withdrawals
+invalid.  
+
+I had to implement a window of 1000 transactions after the chargeback to ensure that withdrawals would not succeed.
+I used some back of the envelope math to determine the window size.  Since Client ids are u16s, there is a maximum of 65535 
+unique clients.  Allowing for up to 1000 transactions per client, that gives a total of just over 6.55 million transactions.
+Since each transaction is roughly 128 bits, that gives a maximum of about 100 MB dedicated to holding transactions.  Of course
+this is also assuming that everything has to be completed in memory.  I made this assumption so that the application would be 
+as robust as possible in the most constrained environment.  However, ideally there would be some kind of transaction database
+that I could query to dispute and resolve transactions, and then I wouldn't need to hold all of the transactions in the window in memory.
+But your automated scoring system may not have disk write access, so I didn't want to run afoul of that.
+
+Implementing a multithreaded and asynchronous system was fairly trivial once I was confident in the correctness of the 
+behavior regarding chargebacks.  I did make sure to use a buffered read to help ensure that the input wasn't so bottlenecked by constant disk accesses.
+I stream in the input data as it is processed, and never read more than 8kb of raw data at a time.
