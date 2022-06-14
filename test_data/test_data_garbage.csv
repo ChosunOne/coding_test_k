@@ -1,0 +1,6 @@
+Returns the next line in the stream.
+!@#$%^&*()_+-=[]{};':"|,./<>?`~
+dispute,1,2,3
+resolve,4,5,
+deposit,dispute,resolve,chargeback,withdrawal
+deposit,1,5,-100.00001
