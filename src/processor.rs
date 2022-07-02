@@ -1,13 +1,12 @@
 //! Holds the `Processor`
 
 use crate::client::Client;
+use crate::reader::RawTransactionStream;
 use crate::transaction::RawTransaction;
 use async_stream::stream;
-use futures_core::Stream;
 use futures_util::future::join_all;
 use futures_util::pin_mut;
 use std::collections::HashMap;
-use std::pin::Pin;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::Sender;
@@ -44,7 +43,7 @@ impl Processor {
     #[inline]
     pub async fn process_transactions(
         &mut self,
-        transactions: impl Stream<Item = RawTransaction>,
+        transactions: RawTransactionStream,
     ) -> Result<Vec<Client>, ProcessorError> {
         pin_mut!(transactions);
         while let Some(transaction) = transactions.next().await {
@@ -55,11 +54,11 @@ impl Processor {
                 let (tx, mut rx) = tokio::sync::mpsc::channel(10);
                 self.client_senders.insert(transaction.client_id, tx);
 
-                let stream = stream! {
+                let stream = RawTransactionStream::new(stream! {
                     while let Some(t) = rx.recv().await {
                         yield t;
                     }
-                };
+                });
 
                 let handle = tokio::spawn(async move {
                     client.process_activity(stream).await;
@@ -107,7 +106,7 @@ mod tests {
     #[tokio::test]
     async fn it_processes_transactions_for_a_single_client() -> Result<()> {
         let mut processor = Processor::default();
-        let raw_transactions = stream! {
+        let raw_transactions = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 client_id: 1,
                 tx_id: 1,
@@ -120,7 +119,7 @@ mod tests {
                 amount: Some(500.0_f64),
                 variant: RawTransactionVariant::Withdrawal
             };
-        };
+        });
         let clients = processor.process_transactions(raw_transactions).await?;
         assert_eq!(clients.len(), 1);
         let client = &clients[0];
@@ -136,7 +135,7 @@ mod tests {
     async fn it_processes_transactions_for_multiple_clients() -> Result<()> {
         let mut processor = Processor::default();
 
-        let raw_transactions = stream! {
+        let raw_transactions = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 client_id: 1,
                 tx_id: 1,
@@ -155,7 +154,7 @@ mod tests {
                 amount: Some(500.0_f64),
                 variant: RawTransactionVariant::Deposit
             };
-        };
+        });
 
         let mut clients = processor.process_transactions(raw_transactions).await?;
         clients.sort_by_key(|c| c.id);

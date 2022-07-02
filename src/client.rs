@@ -1,11 +1,11 @@
 //! This module holds the logic regarding Client accounts, such as their balances, held balances, ids,
 //! and whether or not they are locked.
 
+use crate::reader::RawTransactionStream;
 use crate::transaction::{
     truncate_to_decimal_places, Chargeback, Deposit, Dispute, RawTransaction,
     RawTransactionVariant, Resolve, Transaction, Withdrawal,
 };
-use futures_core::stream::Stream;
 use futures_util::pin_mut;
 use serde::{Serialize, Serializer};
 use std::collections::{HashMap, VecDeque};
@@ -68,7 +68,7 @@ impl Client {
 
     /// Processes all the activity of the client, and computes the final balances and status of the client.
     #[inline]
-    pub async fn process_activity(&mut self, activity_stream: impl Stream<Item = RawTransaction>) {
+    pub async fn process_activity(&mut self, activity_stream: RawTransactionStream) {
         pin_mut!(activity_stream);
         let mut pending_total_balance = self.total_balance;
         let mut pending_held_balance = self.held_balance;
@@ -463,7 +463,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_processes_deposits() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 1,
                 client_id: 1,
@@ -476,7 +476,7 @@ mod tests {
                 amount: Some(2_000.0_f64),
                 variant: RawTransactionVariant::Deposit,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -493,7 +493,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_fails_to_process_deposits_with_different_client_ids() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 1,
                 client_id: 1,
@@ -506,7 +506,7 @@ mod tests {
                 amount: Some(2_000.0_f64),
                 variant: RawTransactionVariant::Deposit,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -521,7 +521,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_processes_withdrawals() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 1,
                 client_id: 1,
@@ -534,7 +534,7 @@ mod tests {
                 amount: Some(1_000.0_f64),
                 variant: RawTransactionVariant::Withdrawal,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -551,7 +551,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_fails_to_process_withdrawals_with_different_client_ids() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 1,
                 client_id: 1,
@@ -564,7 +564,7 @@ mod tests {
                 amount: Some(1_000.0_f64),
                 variant: RawTransactionVariant::Withdrawal,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -580,7 +580,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_disputes_of_deposits() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -593,7 +593,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Dispute,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -609,7 +609,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_disputes_of_withdrawals() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -628,7 +628,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Dispute,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -644,7 +644,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_fails_withdrawals_with_insufficient_balance() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 1,
                 client_id: 1,
@@ -657,7 +657,7 @@ mod tests {
                 amount: Some(2_000.0_f64),
                 variant: RawTransactionVariant::Withdrawal,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -674,7 +674,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_disputes_of_deposits_and_withdrawals() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -699,7 +699,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Dispute,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -715,7 +715,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_rejects_disputes_of_deposits_with_different_client_ids() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -728,7 +728,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Dispute,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -744,7 +744,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_rejects_disputes_of_withdrawals_with_different_client_ids() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -763,7 +763,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Dispute,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -779,7 +779,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_resolves_of_deposit_disputes() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -798,7 +798,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Resolve,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -814,7 +814,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_resolves_of_withdrawal_disputes() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -839,7 +839,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Resolve,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -855,7 +855,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_rejects_resolves_of_deposit_disputes_with_different_client_ids() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -874,7 +874,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Resolve,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -890,7 +890,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_rejects_resolves_of_withdrawal_disputes_with_different_client_ids() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -915,7 +915,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Resolve,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -931,7 +931,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_chargebacks_of_deposit_disputes() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -950,7 +950,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Chargeback,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -967,7 +967,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_chargebacks_of_withdrawal_disputes() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -992,7 +992,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Chargeback,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -1008,7 +1008,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_reverses_withdrawals_after_a_chargeback() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -1033,7 +1033,7 @@ mod tests {
             amount: None,
             variant: RawTransactionVariant::Chargeback,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -1049,7 +1049,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_stops_processing_transactions_when_a_client_is_locked() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
         yield RawTransaction {
             tx_id: 1,
             client_id: 1,
@@ -1074,7 +1074,7 @@ mod tests {
             amount: Some(1_000.0_f64),
             variant: RawTransactionVariant::Deposit,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -1090,7 +1090,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_a_large_volume_of_transactions() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             for i in 0..2000 {
                 yield RawTransaction {
                     tx_id: i,
@@ -1099,7 +1099,7 @@ mod tests {
                     variant: RawTransactionVariant::Deposit,
                 }
             }
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -1115,7 +1115,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_resolving_deposit_disputes_after_window_expired() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 0,
                 client_id: 1,
@@ -1136,7 +1136,7 @@ mod tests {
                     variant: RawTransactionVariant::Deposit,
                 };
             }
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -1152,7 +1152,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_resolving_withdrawal_disputes_after_window_expired() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 0,
                 client_id: 1,
@@ -1179,7 +1179,7 @@ mod tests {
                     variant: RawTransactionVariant::Deposit,
                 };
             }
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -1195,7 +1195,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_resolving_a_dispute_for_a_failed_withdrawal() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 1,
                 client_id: 1,
@@ -1214,7 +1214,7 @@ mod tests {
                 amount: None,
                 variant: RawTransactionVariant::Resolve,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -1230,7 +1230,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_handles_a_chargeback_for_a_failed_withdrawal() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
             yield RawTransaction {
                 tx_id: 1,
                 client_id: 1,
@@ -1249,7 +1249,7 @@ mod tests {
                 amount: None,
                 variant: RawTransactionVariant::Chargeback,
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
@@ -1286,7 +1286,7 @@ client,available,held,total,locked
 
     #[tokio::test]
     async fn it_handles_deposits_withdrawals_disputes_and_resolves() -> Result<()> {
-        let stream = stream! {
+        let stream = RawTransactionStream::new(stream! {
              yield RawTransaction {
                 tx_id: 1,
                 client_id: 1,
@@ -1323,7 +1323,7 @@ client,available,held,total,locked
                 amount: None,
                 variant: RawTransactionVariant::Resolve
             };
-        };
+        });
 
         let mut client = Client::new(1);
 
