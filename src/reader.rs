@@ -118,16 +118,14 @@ mod tests {
     use super::*;
     use crate::transaction::RawTransactionVariant;
     use anyhow::Result;
-    use futures_util::pin_mut;
     use tokio_stream::StreamExt;
 
     #[tokio::test]
     async fn it_reads_from_file() -> Result<()> {
         let path = Path::new("test_data/test_data.csv");
-        let stream = read_transactions_from_file(path).await?;
-        pin_mut!(stream);
+        let mut stream = read_transactions_from_file(path).await?;
         let mut count = 0_u32;
-        while let Some(_transaction) = stream.0.next().await {
+        while let Some(_transaction) = stream.next().await {
             count += 1_u32;
         }
         assert_eq!(count, 10_u32);
@@ -137,10 +135,9 @@ mod tests {
     #[tokio::test]
     async fn it_reads_from_file_with_garbage_lines() -> Result<()> {
         let path = Path::new("test_data/test_data_garbage.csv");
-        let stream = read_transactions_from_file(path).await?;
-        pin_mut!(stream);
+        let mut stream = read_transactions_from_file(path).await?;
         let mut count = 0_u32;
-        while let Some(_transaction) = stream.0.next().await {
+        while let Some(_transaction) = stream.next().await {
             count += 1_u32;
         }
         assert_eq!(count, 3_u32);
@@ -150,10 +147,9 @@ mod tests {
     #[tokio::test]
     async fn it_reads_from_file_with_deposits_withdrawals_disputes_and_resolves() -> Result<()> {
         let path = Path::new("test_data/test_data_run1.csv");
-        let stream = read_transactions_from_file(path).await?;
-        pin_mut!(stream);
+        let mut stream = read_transactions_from_file(path).await?;
         let mut count = 0_usize;
-        while let Some(transaction) = stream.0.next().await {
+        while let Some(transaction) = stream.next().await {
             match count {
                 0 => {
                     assert_eq!(

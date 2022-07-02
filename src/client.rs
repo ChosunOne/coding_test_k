@@ -6,7 +6,6 @@ use crate::transaction::{
     truncate_to_decimal_places, Chargeback, Deposit, Dispute, RawTransaction,
     RawTransactionVariant, Resolve, Transaction, Withdrawal,
 };
-use futures_util::pin_mut;
 use serde::{Serialize, Serializer};
 use std::collections::{HashMap, VecDeque};
 use tokio_stream::StreamExt;
@@ -68,8 +67,7 @@ impl Client {
 
     /// Processes all the activity of the client, and computes the final balances and status of the client.
     #[inline]
-    pub async fn process_activity(&mut self, activity_stream: RawTransactionStream) {
-        pin_mut!(activity_stream);
+    pub async fn process_activity(&mut self, mut activity_stream: RawTransactionStream) {
         let mut pending_total_balance = self.total_balance;
         let mut pending_held_balance = self.held_balance;
         let mut pending_available_balance = self.available_balance;

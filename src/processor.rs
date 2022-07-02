@@ -5,7 +5,6 @@ use crate::reader::RawTransactionStream;
 use crate::transaction::RawTransaction;
 use async_stream::stream;
 use futures_util::future::join_all;
-use futures_util::pin_mut;
 use std::collections::HashMap;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
@@ -43,9 +42,8 @@ impl Processor {
     #[inline]
     pub async fn process_transactions(
         &mut self,
-        transactions: RawTransactionStream,
+        mut transactions: RawTransactionStream,
     ) -> Result<Vec<Client>, ProcessorError> {
-        pin_mut!(transactions);
         while let Some(transaction) = transactions.next().await {
             if let std::collections::hash_map::Entry::Vacant(e) =
                 self.client_handles.entry(transaction.client_id)
