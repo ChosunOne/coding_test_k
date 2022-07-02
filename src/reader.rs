@@ -8,9 +8,9 @@ use futures_core::stream::Stream;
 use futures_util::pin_mut;
 use std::io;
 use std::path::Path;
+use std::pin::Pin;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_stream::wrappers::LinesStream;
-use tokio_stream::StreamExt;
 
 /// Reads bytes from a file into a stream
 /// # Errors
@@ -19,10 +19,10 @@ use tokio_stream::StreamExt;
 pub async fn read_from_file(path: &Path) -> Result<impl Stream<Item = String>, io::Error> {
     let file = tokio::fs::File::open(path).await?;
     let reader = BufReader::new(file).lines();
-    let mut string_result_stream = LinesStream::new(reader);
+    let string_result_stream = LinesStream::new(reader);
 
     Ok(stream! {
-        while let Some(result_data) = string_result_stream.next().await {
+        for await result_data in string_result_stream {
             if let Ok(data) = result_data {
                 yield data;
             } else {
@@ -38,8 +38,7 @@ pub async fn process_raw_data(
     source: impl Stream<Item = String>,
 ) -> impl Stream<Item = RawTransaction> {
     stream! {
-        pin_mut!(source);
-        while let Some(data) = source.next().await {
+        for await data in source {
             let mut rdr = csv::ReaderBuilder::new()
                 .has_headers(false)
                 .from_reader(data.as_bytes());
@@ -69,6 +68,8 @@ mod tests {
     use super::*;
     use crate::transaction::RawTransactionVariant;
     use anyhow::Result;
+    use futures_util::pin_mut;
+    use tokio_stream::StreamExt;
 
     #[tokio::test]
     async fn it_reads_from_file() -> Result<()> {

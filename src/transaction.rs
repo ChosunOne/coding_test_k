@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Truncates a floating point number to the specified number of decimal places.
+#[must_use]
+#[inline]
 pub fn truncate_to_decimal_places(num: f64, places: i32) -> f64 {
     let ten = 10.0_f64.powi(places);
     // Need to check here because floats will become infinite if they are too large.  We are safe
@@ -79,10 +81,15 @@ pub enum RawTransactionVariant {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Transaction {
+    /// A deposit transaction
     Deposit(Deposit),
+    /// A withdrawal transaction
     Withdrawal(Withdrawal),
+    /// A dispute transaction
     Dispute(Dispute),
+    /// A resolve transaction
     Resolve(Resolve),
+    /// A chargeback transaction
     Chargeback(Chargeback),
 }
 /// A deposit is a credit to the client's asset account, meaning it should increase the available and
@@ -285,6 +292,7 @@ unsafe impl Sync for RawTransaction {}
 
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use anyhow::{anyhow, Result};

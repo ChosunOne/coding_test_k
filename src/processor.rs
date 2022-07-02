@@ -4,8 +4,10 @@ use crate::client::Client;
 use crate::transaction::RawTransaction;
 use async_stream::stream;
 use futures_core::Stream;
+use futures_util::future::join_all;
 use futures_util::pin_mut;
 use std::collections::HashMap;
+use std::pin::Pin;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::Sender;
@@ -16,8 +18,10 @@ use tokio_stream::StreamExt;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ProcessorError {
+    /// Triggered if the channel to send transactions is closed or fails
     #[error("Failed to send transaction to client: {0}")]
     SendError(#[from] SendError<RawTransaction>),
+    /// Triggered if the client is not present
     #[error("Failed to find client for transaction")]
     ClientError,
 }
@@ -83,20 +87,14 @@ impl Processor {
     /// Joins the `Client` handles into a vector of the finished `Client`s.
     #[inline]
     async fn join_clients(&mut self) -> Vec<Client> {
-        let handles = self
-            .client_handles
-            .drain()
-            .map(|(_, handle)| handle)
-            .collect::<Vec<_>>();
-        let mut clients = Vec::new();
-        for handle in handles {
-            match handle.await {
-                Ok(client) => clients.push(client),
-                Err(e) => eprintln!("Failed to join client: {}", e),
-            }
-        }
+        let results = join_all(
+            self.client_handles
+                .drain()
+                .map(|(_, handle)| async { handle.await }),
+        )
+        .await;
 
-        clients
+        results.into_iter().flatten().collect()
     }
 }
 

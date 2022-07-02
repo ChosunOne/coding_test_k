@@ -18,7 +18,8 @@
 #![allow(clippy::separated_literal_suffix)]
 #![allow(clippy::float_arithmetic)]
 #![allow(clippy::struct_excessive_bools)]
-
+#![allow(clippy::use_self)]
+#![allow(clippy::pattern_type_mismatch)]
 pub mod client;
 pub mod processor;
 pub mod reader;

@@ -215,7 +215,9 @@ impl Client {
                             );
                         }
                     }
-                    _ => {
+                    Transaction::Dispute(_)
+                    | Transaction::Resolve(_)
+                    | Transaction::Chargeback(_) => {
                         eprintln!("Failed to finalize transaction");
                     }
                 }
@@ -307,7 +309,7 @@ impl Client {
                         *pending_available_balance += withdrawal.amount;
                     }
                 }
-                _ => {
+                Transaction::Dispute(_) | Transaction::Resolve(_) | Transaction::Chargeback(_) => {
                     // The transaction referenced is not a deposit or withdrawal
                     eprintln!(
                         "Transaction is not a deposit or withdrawal: {}",
@@ -367,7 +369,7 @@ impl Client {
                         *pending_available_balance -= withdrawal.amount;
                     }
                 }
-                _ => {
+                Transaction::Dispute(_) | Transaction::Resolve(_) | Transaction::Chargeback(_) => {
                     // The transaction is not a deposit or a withdrawal
                     eprintln!(
                         "Transaction is not a deposit or withdrawal: {}",
@@ -424,7 +426,7 @@ impl Client {
 
                     self.locked = true;
                 }
-                _ => {
+                Transaction::Dispute(_) | Transaction::Resolve(_) | Transaction::Chargeback(_) => {
                     // The transaction is not a deposit or a withdrawal
                     eprintln!(
                         "Transaction is not a deposit or withdrawal: {}",
@@ -458,7 +460,6 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use async_stream::stream;
-    use std::io;
 
     #[tokio::test]
     async fn it_processes_deposits() -> Result<()> {
