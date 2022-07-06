@@ -84,14 +84,15 @@ impl Processor {
     /// Joins the `Client` handles into a vector of the finished `Client`s.
     #[inline]
     async fn join_clients(&mut self) -> Vec<Client> {
-        let results = join_all(
+        join_all(
             self.client_handles
                 .drain()
                 .map(|(_, handle)| async { handle.await }),
         )
-        .await;
-
-        results.into_iter().flatten().collect()
+        .await
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
